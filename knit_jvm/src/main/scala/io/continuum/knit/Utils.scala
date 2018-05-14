@@ -1,17 +1,19 @@
 package io.continuum.knit
 import java.io.File
-import java.net.{InetAddress, UnknownHostException, URI, URISyntaxException}
-import com.google.common.base.Objects
+import java.net.{InetAddress, URI, URISyntaxException, UnknownHostException}
+import java.nio.file.FileSystem
 
+import com.google.common.base.Objects
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, Path, FileContext, FileUtil}
+import org.apache.hadoop.fs.{FileContext, FileSystem, FileUtil, Path}
 import org.apache.hadoop.fs
 import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
-import org.apache.hadoop.yarn.api.records.{LocalResourceVisibility, LocalResourceType, LocalResource}
+import org.apache.hadoop.yarn.api.records.{LocalResource, LocalResourceType, LocalResourceVisibility}
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.hadoop.yarn.util.{Apps, ConverterUtils}
 import org.apache.log4j.Logger
+
 import scala.collection.JavaConverters._
 
 object Utils extends Logging {
