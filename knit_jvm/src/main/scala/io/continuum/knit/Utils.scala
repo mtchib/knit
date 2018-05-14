@@ -1,7 +1,6 @@
 package io.continuum.knit
 import java.io.File
 import java.net.{InetAddress, URI, URISyntaxException, UnknownHostException}
-import java.nio.file.FileSystem
 
 import com.google.common.base.Objects
 import org.apache.hadoop.conf.Configuration
@@ -22,8 +21,8 @@ object Utils extends Logging {
   def setUpLocalResource(resourcePath: Path, resource: LocalResource, archived: Boolean = false)(implicit conf: Configuration) = {
 
     val fileType = if (archived) LocalResourceType.ARCHIVE else LocalResourceType.FILE
-
-    val jarStat = FileSystem.get(conf).getFileStatus(resourcePath)
+    val fs = resourcePath.getFileSystem(conf)
+    val jarStat = fs.getFileStatus(resourcePath)
     resource.setResource(ConverterUtils.getYarnUrlFromPath(resourcePath))
     resource.setSize(jarStat.getLen())
     resource.setTimestamp(jarStat.getModificationTime())
@@ -45,9 +44,9 @@ object Utils extends Logging {
   }
 
   def setDependencies()(implicit conf: YarnConfiguration) = {
-    val fs = FileSystem.get(conf)
     val stagingDir = ".knitDeps"
     val stagingDirPath = new Path(sys.env("HDFS_KNIT_DIR"), stagingDir)
+    val fs = stagingDirPath.getFileSystem(conf)
 
     // Staging directory is globally readable for now
     val STAGING_DIR_PERMISSION: FsPermission =
@@ -70,7 +69,6 @@ object Utils extends Logging {
   }
 
   def uploadFile(filePath: String)(implicit conf: YarnConfiguration) = {
-    val fs = FileSystem.get(conf)
     val stagingDir = ".knitDeps"
     val stagingDirPath = new Path(sys.env("HDFS_KNIT_DIR"), stagingDir)
     val replicationFactor = sys.env("REPLICATION_FACTOR").toShort
