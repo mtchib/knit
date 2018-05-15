@@ -249,8 +249,9 @@ class Knit(object):
             A yarn application ID string
         """
         files = files or []
-        envvars = envvars or {'KNIT_LANG': self.lang}
-        for k, v in envvars.items():
+        final_env = {'KNIT_LANG': self.lang}
+        final_env.update(envvars or {})
+        for k, v in final_env.items():
             if not isinstance(k, str) or not isinstance(v, str):
                 raise ValueError('Environment must contain only strings (%s)'
                                  % ((k, v),))
@@ -321,7 +322,7 @@ class Knit(object):
                    and self.check_needs_upload(f))]
         logger.debug("Files to upload: %s" % upfiles)
         jfiles = ListConverter().convert(upfiles, gateway._gateway_client)
-        jenv = MapConverter().convert(envvars, gateway._gateway_client)
+        jenv = MapConverter().convert(final_env, gateway._gateway_client)
 
         self.app_id = self.client.start(jfiles, jenv, app_name, queue)
 
@@ -355,7 +356,7 @@ class Knit(object):
                   for f in files]
         logger.debug("Resource files: %s" % rfiles)
         jfiles = ListConverter().convert(rfiles, gateway._gateway_client)
-        jenv = MapConverter().convert(envvars, gateway._gateway_client)
+        jenv = MapConverter().convert(final_env, gateway._gateway_client)
         self.master.init(jfiles, jenv, cmd, num_containers,
                          virtual_cores, memory)
 
