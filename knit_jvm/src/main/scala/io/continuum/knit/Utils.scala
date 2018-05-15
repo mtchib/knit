@@ -165,4 +165,9 @@ object Utils extends Logging {
     }
     new File(path).getAbsoluteFile().toURI()
   }
+
+  def isLocal(path: String): Boolean = {
+    val uri = new URI(path)
+    return uri.getScheme() == null || uri.getScheme() == "file"
+  }
 }

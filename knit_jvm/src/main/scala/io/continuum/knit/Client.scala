@@ -129,14 +129,11 @@ object Client extends Logging {
         if (fileName.endsWith(".zip")) {
           iszip = true
         }
-        val fileUpload = Records.newRecord(classOf[LocalResource])
-        var p = new Path(fileName)
-        val name = p.getName  
-        if (fileName.startsWith("hdfs://")) {
-          logger.debug(s"HDFS existing resource $fileName")
-        } else {
+        if (isLocal(fileName)) {
           val file = new File(fileName)
-          uploadFile(file.getAbsolutePath)  
+          uploadFile(file.getAbsolutePath)
+        } else {
+          logger.debug(s"Skipping upload of HDFS existing resource $fileName")
         }
       }
     }

@@ -1,6 +1,7 @@
 from __future__ import print_function, division, absolute_import
 
 import logging
+from urllib.parse import urlparse
 
 from .compatibility import check_output
 
@@ -45,8 +46,23 @@ def get_log_content(s):
     return out.lstrip('\n          <pre>').rstrip('</pre>\n        ')
 
 
-def triple_slash(s):
-    if s.startswith('hdfs://') and not s.startswith('hdfs:///'):
-        return 'hdfs:///' + s[7:]
-    else:
-        return s
+def is_local(url):
+    """
+    Assume urls without scheme are local
+    """
+    parsed_url = urlparse(url)
+    return not parsed_url.scheme or parsed_url.scheme == "file"
+
+
+def url_to_path(url, hdfs=None):
+    """
+    From a url return a path (without scheme and host) for usage with hdfs
+    This function will fail in case the hdfs filesystem is incorrect
+    """
+    parsed_url = urlparse(url)
+    if hdfs and parsed_url.scheme != 'hdfs':
+        raise RuntimeError("hdfs3 only supports hdfs filesystem")
+    if hdfs and parsed_url.netloc != hdfs.host:
+        raise RuntimeError("wrong filesystem: expected {} got {}".format(
+            hdfs.host, parsed_url.netloc))
+    return parsed_url.path

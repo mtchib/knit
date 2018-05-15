@@ -1,6 +1,6 @@
 import logging
 
-from knit.utils import set_logging, triple_slash
+from knit.utils import set_logging
 
 
 def test_set_logging():
@@ -9,9 +9,3 @@ def test_set_logging():
     assert logger.level == logging.DEBUG
     set_logging(logging.INFO)
     assert logger.level == logging.INFO
-
-
-def test_slashes():
-    assert triple_slash('hdfs://hello/path') == 'hdfs:///hello/path'
-    assert triple_slash('hdfs:///hello/path') == 'hdfs:///hello/path'
-    assert triple_slash('hdfs:////hello/path') == 'hdfs:////hello/path'

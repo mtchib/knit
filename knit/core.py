@@ -18,7 +18,7 @@ from .conf import get_config, DEFAULT_KNIT_HOME
 from .env import CondaCreator
 from .exceptions import KnitException, YARNException
 from .yarn_api import YARNAPI
-from .utils import triple_slash
+from .utils import is_local, url_to_path
 
 from py4j.protocol import Py4JError
 from py4j.java_gateway import JavaGateway, GatewayClient
@@ -124,8 +124,10 @@ class Knit(object):
         self.KNIT_HOME = knit_home
         self.upload_always = upload_always
         self.lang = self.conf.get('lang', 'C.UTF-8')
+        default_fs = self.conf.get('fs.defaultFS', 'hdfs://')
+        guessed_hdfs_home = default_fs + '/user/' + self.conf['user']
         self.hdfs_home = hdfs_home or self.conf.get(
-            'dfs.user.home.base.dir', '/user/' + self.conf['user'])
+            'dfs.user.home.base.dir', guessed_hdfs_home)
         self.client_gateway = None
 
         # must set KNIT_HOME ENV for YARN App
@@ -193,8 +195,8 @@ class Knit(object):
         if self.hdfs:
             df = self.hdfs.df()
             cap = (df['capacity'] - df['used']) // 2**20
-            fs = [self.JAR_FILE_PATH] + [f for f in files
-                                         if not f.startswith('hdfs://')]
+            fs = [self.JAR_FILE_PATH] + [url_to_path(f) for f in files
+                                         if is_local(f)]
             need = sum(os.stat(f).st_size for f in fs) // 2**20
             # NB: if replication > 1 this might not be enough
             if cap < need:
@@ -318,8 +320,8 @@ class Knit(object):
         self.client = gateway.entry_point
         self.client_gateway = gateway
         logger.debug("Files submitted: %s" % files)
-        upfiles = [f for f in files if (not f.startswith('hdfs://')
-                   and self.check_needs_upload(f))]
+        upfiles = [f for f in files if is_local(f)
+                   and self.check_needs_upload(f)]
         logger.debug("Files to upload: %s" % upfiles)
         jfiles = ListConverter().convert(upfiles, gateway._gateway_client)
         jenv = MapConverter().convert(final_env, gateway._gateway_client)
@@ -350,8 +352,8 @@ class Knit(object):
         gateway = JavaGateway(GatewayClient(
             address=master_rpchost, port=master_rpcport), auto_convert=True)
         self.master = gateway.entry_point
-        rfiles = [triple_slash(f) if f.startswith('hdfs://') else
-                  '/'.join(['hdfs://', self.hdfs_home, '.knitDeps',
+        rfiles = [f if not is_local(f) else
+                  '/'.join([self.hdfs_home, '.knitDeps',
                             os.path.basename(f)])
                   for f in files]
         logger.debug("Resource files: %s" % rfiles)
@@ -583,7 +585,9 @@ class Knit(object):
         Returns: list of dict
             Details for each zip-file."""
         if self.hdfs:
-            files = self.hdfs.ls(self.hdfs_home + '/.knitDeps/', True)
+            env_dir_url = self.hdfs_home + '/.knitDeps/'
+            env_dir_path = url_to_path(env_dir_url, self.hdfs)
+            files = self.hdfs.ls(env_dir_path, True)
             return [f for f in files if f['name'].endswith('.zip')]
         else:
             raise ImportError('Set the `hdfs` attribute to be able to list'
@@ -591,10 +595,11 @@ class Knit(object):
 
     def check_needs_upload(self, path):
         """Upload is needed if file does not exist in HDFS or is older"""
-        if self.upload_always:
+        if self.upload_always or not self.hdfs:
             return True
-        fn = '/'.join([self.hdfs_home, '.knitDeps', os.path.basename(path)])
-        if self.hdfs and self.hdfs.exists(fn):
+        url = '/'.join([self.hdfs_home, '.knitDeps', os.path.basename(path)])
+        fn = url_to_path(url, self.hdfs)
+        if self.hdfs.exists(fn):
             st = os.stat(path)
             size = st.st_size
             t = st.st_mtime
